@@ -1,13 +1,17 @@
 package br.ufpe.cin.if1001.rss.ui;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -31,6 +35,7 @@ import br.ufpe.cin.if1001.rss.R;
 import br.ufpe.cin.if1001.rss.db.RssProviderContract;
 import br.ufpe.cin.if1001.rss.db.SQLiteRSSHelper;
 import br.ufpe.cin.if1001.rss.domain.ItemRSS;
+import br.ufpe.cin.if1001.rss.services.DownloadService;
 import br.ufpe.cin.if1001.rss.util.ParserRSS;
 
 public class MainActivity extends Activity {
@@ -95,69 +100,33 @@ public class MainActivity extends Activity {
         super.onStart();
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         String linkfeed = preferences.getString("rssfeedlink", getResources().getString(R.string.rssfeed));
-        new CarregaRSS().execute(linkfeed);
+        Intent ds = new Intent(getApplicationContext(), DownloadService.class);
+        ds.putExtra("url", linkfeed);
+        startService(ds);
     }
 
     @Override
-    protected void onDestroy() {
-        db.close();
-        super.onDestroy();
+    protected void onResume() {
+        super.onResume();
+        IntentFilter intentFilter = new IntentFilter(DownloadService.DOWNLOADED);
+        LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(onDownloadCompleteEvent, intentFilter);
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.mainmenu, menu);
-        return super.onCreateOptionsMenu(menu);
+    protected void onPause() {
+        super.onPause();
+        LocalBroadcastManager.getInstance(getApplicationContext()).unregisterReceiver(onDownloadCompleteEvent);
+
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.btn_Config:
-                startActivity(new Intent(this, ConfigActivity.class));
-                return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    class CarregaRSS extends AsyncTask<String, Void, Boolean> {
+    private BroadcastReceiver onDownloadCompleteEvent = new BroadcastReceiver() {
 
         @Override
-        protected Boolean doInBackground(String... feeds) {
-            boolean flag_problema = false;
-            List<ItemRSS> items = null;
-            try {
-                String feed = getRssFeed(feeds[0]);
-                items = ParserRSS.parse(feed);
-                for (ItemRSS i : items) {
-                    Log.d("DB", "Buscando no Banco por link: " + i.getLink());
-                    ItemRSS item = db.getItemRSS(i.getLink());
-                    if (item == null) {
-                        Log.d("DB", "Encontrado pela primeira vez: " + i.getTitle());
-                        db.insertItem(i);
-                    }
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                flag_problema = true;
-            } catch (XmlPullParserException e) {
-                e.printStackTrace();
-                flag_problema = true;
-            }
-            return flag_problema;
+        public void onReceive(Context context, Intent intent) {
+            Toast.makeText(getApplicationContext(), "Notícias carregadas, exibindo o feed.", Toast.LENGTH_LONG).show();
+            new ExibirFeed().execute();
         }
-
-        @Override
-        protected void onPostExecute(Boolean teveProblema) {
-            if (teveProblema) {
-                Toast.makeText(MainActivity.this, "Houve algum problema ao carregar o feed.", Toast.LENGTH_SHORT).show();
-            } else {
-                //dispara o task que exibe a lista
-                new ExibirFeed().execute();
-            }
-        }
-    }
+    };
 
     class ExibirFeed extends AsyncTask<Void, Void, Cursor> {
 
@@ -176,25 +145,20 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String getRssFeed(String feed) throws IOException {
-        InputStream in = null;
-        String rssFeed = "";
-        try {
-            URL url = new URL(feed);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            in = conn.getInputStream();
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            for (int count; (count = in.read(buffer)) != -1; ) {
-                out.write(buffer, 0, count);
-            }
-            byte[] response = out.toByteArray();
-            rssFeed = new String(response, "UTF-8");
-        } finally {
-            if (in != null) {
-                in.close();
-            }
-        }
-        return rssFeed;
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.mainmenu, menu);
+        return super.onCreateOptionsMenu(menu);
     }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.btn_Config:
+                startActivity(new Intent(this, ConfigActivity.class));
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
 }

@@ -107,9 +107,10 @@ public class SQLiteRSSHelper extends SQLiteOpenHelper {
 
     public Cursor getItems() throws SQLException {
         SQLiteDatabase readableDB = db.getReadableDatabase();
-        Cursor query = readableDB.query(DATABASE_TABLE, columns, ITEM_UNREAD + " = 1", null, null, null, null);
+        Cursor query = readableDB.query(DATABASE_TABLE, columns, ITEM_UNREAD + " = 1", null, null, null, ITEM_DATE + " DESC");
         return query;
     }
+
     public boolean markAsUnread(String link) {
         return false;
     }
