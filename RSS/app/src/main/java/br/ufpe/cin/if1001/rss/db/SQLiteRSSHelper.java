@@ -74,20 +74,57 @@ public class SQLiteRSSHelper extends SQLiteOpenHelper {
         return insertItem(item.getTitle(),item.getPubDate(),item.getDescription(),item.getLink());
     }
     public long insertItem(String title, String pubDate, String description, String link) {
-        return 0.0;
+
+        ContentValues itemRss = new ContentValues();
+        itemRss.put(ITEM_TITLE, title);
+        itemRss.put(ITEM_DESC, description);
+        itemRss.put(ITEM_LINK, link);
+        itemRss.put(ITEM_DATE, pubDate);
+        itemRss.put(ITEM_UNREAD, 1);
+
+        SQLiteDatabase writableDB = db.getWritableDatabase();
+
+        return writableDB.insert(DATABASE_TABLE, null, itemRss);
     }
+
+    //Retorna todos os itens que ainda não foram lidos.
     public ItemRSS getItemRSS(String link) throws SQLException {
-        return new ItemRSS("FALTA IMPLEMENTAR","FALTA IMPLEMENTAR","2018-04-09","FALTA IMPLEMENTAR");
-    }
-    public Cursor getItems() throws SQLException {
+        SQLiteDatabase readableDB = db.getReadableDatabase();
+        Cursor query = readableDB.query(DATABASE_TABLE, columns, ITEM_LINK + "=?", new String[]{link}, null, null, ITEM_DATE);
+
+        //Força a consulta caso venha mais do que um valor de acordo com o link filtrado na busca.
+        if (query.getCount() != 0) {
+            query.moveToFirst();
+            ItemRSS item = new ItemRSS(query.getString(query.getColumnIndexOrThrow(ITEM_TITLE)),
+                    query.getString(query.getColumnIndexOrThrow(ITEM_LINK)),
+                    query.getString(query.getColumnIndexOrThrow(ITEM_DATE)),
+                    query.getString(query.getColumnIndexOrThrow(ITEM_DESC)));
+
+            return item;
+        }
         return null;
+    }
+
+    public Cursor getItems() throws SQLException {
+        SQLiteDatabase readableDB = db.getReadableDatabase();
+        Cursor query = readableDB.query(DATABASE_TABLE, columns, ITEM_UNREAD + " = 1", null, null, null, null);
+        return query;
     }
     public boolean markAsUnread(String link) {
         return false;
     }
 
     public boolean markAsRead(String link) {
-        return false;
+        SQLiteDatabase writableDB = db.getWritableDatabase();
+        ContentValues itemRss = new ContentValues();
+        itemRss.put(ITEM_UNREAD, 0);
+        int updated = writableDB.update(DATABASE_TABLE, itemRss, ITEM_LINK + " = ?", new String[]{link});
+        if (updated == 1) {
+            return true;
+        } else {
+            return false;
+        }
     }
-
 }
+
+

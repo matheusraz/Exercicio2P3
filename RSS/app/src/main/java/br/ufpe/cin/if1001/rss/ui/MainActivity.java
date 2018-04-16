@@ -28,6 +28,7 @@ import java.net.URL;
 import java.util.List;
 
 import br.ufpe.cin.if1001.rss.R;
+import br.ufpe.cin.if1001.rss.db.RssProviderContract;
 import br.ufpe.cin.if1001.rss.db.SQLiteRSSHelper;
 import br.ufpe.cin.if1001.rss.domain.ItemRSS;
 import br.ufpe.cin.if1001.rss.util.ParserRSS;
@@ -68,12 +69,23 @@ public class MainActivity extends Activity {
         // permite filtrar conteudo pelo teclado virtual
         conteudoRSS.setTextFilterEnabled(true);
 
+
+
         //Complete a implementação deste método de forma que ao clicar, o link seja aberto no navegador e
         // a notícia seja marcada como lida no banco
         conteudoRSS.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 SimpleCursorAdapter adapter = (SimpleCursorAdapter) parent.getAdapter();
                 Cursor mCursor = ((Cursor) adapter.getItem(position));
+
+                db.markAsRead(mCursor.getString(mCursor.getColumnIndexOrThrow(RssProviderContract.LINK)));
+
+                Intent browserOpen = new Intent(Intent.ACTION_VIEW);
+                Uri url = Uri.parse(mCursor.getString(mCursor.getColumnIndexOrThrow(RssProviderContract.LINK)));
+                browserOpen.setData(url);
+                if(browserOpen.resolveActivity(getPackageManager()) != null){
+                    startActivity(browserOpen);
+                }
             }
         });
     }
