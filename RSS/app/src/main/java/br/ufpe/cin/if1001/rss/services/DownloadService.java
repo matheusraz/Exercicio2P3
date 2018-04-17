@@ -24,6 +24,8 @@ public class DownloadService extends IntentService {
 
     public static final String DOWNLOADED = "br.cin.ufpe.br.if1001.rss.DOWNLOADED";
 
+    public static final String REPORT_AVAILABLE = "br.ufpe.cin.if1001.rss.REPORTS";
+
     public DownloadService() {
         super("DownloadService");
     }
@@ -40,6 +42,7 @@ public class DownloadService extends IntentService {
                 Log.d("DB", "Buscando no Banco por link: " + i.getLink());
                 ItemRSS item = db.getItemRSS(i.getLink());
                 if (item == null) {
+                    sendBroadcast(new Intent());
                     Log.d("DB", "Encontrado pela primeira vez: " + i.getTitle());
                     db.insertItem(i);
                 }
